@@ -4,17 +4,12 @@ require("./config/database")
 const User=require("./models/user");
 const app=express();
 
+app.use(express.json());
+
 
 app.post("/signUp", async (req,res)=>{
-    const userObj={
-        firstName:"Pawannnn",
-        lastName:"fartyal",
-        emailId:"asis@yopmail.com",
-        password:"Ashish@123",
-        age:24,
-        gender:"Male"
-    }
 
+    const userObj=req.body
     const user=new User(userObj);
     try {
         await user.save();
@@ -23,7 +18,6 @@ app.post("/signUp", async (req,res)=>{
         console.log(err);
         res.status(500).send("An error occurred while creating the user");
     }
-    
 })
 
 connectDb()
