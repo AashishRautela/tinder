@@ -1,7 +1,9 @@
 const express = require("express");
 const connectDb = require("./config/database");
 const User = require("./models/user");
-const validator=require("validator")
+const validator = require("validator")
+const { validateUser } = require("./utils/validation")
+const bcrypt = require("bcrypt")
 
 const app = express();
 app.use(express.json());
@@ -9,34 +11,61 @@ app.use(express.json());
 // API to sign up a new user
 app.post("/user", async (req, res) => {
     const { firstName, emailId, password, lastName, age, gender } = req.body;
-    if (!firstName || !emailId || !password) {
-        return res.status(400).send({
-            success: false,
-            message: "Request Data Missing."
-        });
-    }
-    if(emailId && !validator.isEmail(emailId)){
-        return res.status(400).send({
-            success: false,
-            message: "Please Enter a valid email."
-        });
-    }
-    const user = new User(req.body);
     try {
+        validateUser(req);
+        const encryptedPassowrd = await bcrypt.hash(password, 10)
+        console.log('encryptedPassowrd', encryptedPassowrd)
+        const user = new User({ ...req.body, "password": encryptedPassowrd });
         await user.save();
         res.status(201).send({
             success: true,
             message: "User created successfully"
         });
     } catch (err) {
-        console.error(err);
-        res.status(500).send({
+        res.status(err.statusCode || 500).send({
             success: false,
-            message: "An error occurred while creating the user",
-            error: err.message
+            message: err.message
         });
     }
 });
+
+//login
+app.post("/login", async (req, res) => {
+    try {
+        const { emailId, password } = req.body
+        if (!validator.isEmail(emailId)) {
+            const error = new Error("Email is not valid");
+            error.statusCode = 400
+            throw error;
+        }
+        const user = await User.findOne({ "emailId": emailId });
+        if (user) {
+            const isPasswordCorrect = await bcrypt.compare(password, user.password);
+            if (isPasswordCorrect) {
+                res.status(200).send({
+                    success: true,
+                    message: "User loged in successfully"
+                })
+            }
+            else {
+                const error = new Error("Email or Password is incorrect");
+                error.statusCode = 400
+                throw error;
+            }
+        }
+        else {
+            const error = new Error("Email or Password is incorrect");
+            error.statusCode = 400
+            throw error;
+        }
+    }
+    catch (error) {
+        res.status(error.statusCode).send({
+            success: false,
+            message: error.message
+        })
+    }
+})
 
 // API to fetch a user by firstName
 app.get("/user", async (req, res) => {
@@ -48,7 +77,6 @@ app.get("/user", async (req, res) => {
             data: response || []
         });
     } catch (error) {
-        console.error(error);
         res.status(400).send({
             success: false,
             message: "Error fetching data",
@@ -103,14 +131,14 @@ app.delete("/user", async (req, res) => {
 
 // API to update a user by ID
 app.patch("/user/:id", async (req, res) => {
-    const id=req.params?.id
-    const {...updateFields } = req.body;
+    const id = req.params?.id
+    const { ...updateFields } = req.body;
 
     try {
-        const emailId=updateFields?.emailId;
+        const emailId = updateFields?.emailId;
         if (emailId) {
             const user = await User.findOne({ "emailId": emailId });
-        
+
             if (user) {
                 if (user._id.toString() === id) {
                     res.status(400).send({
@@ -126,7 +154,7 @@ app.patch("/user/:id", async (req, res) => {
                 return;
             }
         }
-        
+
         const notAllowedToUpdate = [""];
         const isAllowed = Object.keys(updateFields).every(key => !notAllowedToUpdate.includes(key));
         if (!isAllowed) {
