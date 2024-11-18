@@ -1,6 +1,11 @@
 const { default: mongoose } = require("mongoose");
 const mongodb = require("mongoose");
-const validator=require("validator")
+const validator=require("validator");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt")
+require("dotenv").config({ path: "config.env" });
+
+const key = process.env.JWT_KEY || "asdfghjkl"
 
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -59,6 +64,19 @@ const userSchema = new mongoose.Schema({
         trim:true
     }
 },{timestamps:true})
+
+// **************************************************schema methodes************************************************************
+
+userSchema.methods.getJWT=async function(){
+    const token=await jwt.sign({_id:this?._id},key)
+    return token;
+}
+
+userSchema.methods.validatePassword=async function(password){
+    const isPasswordCorrect = await bcrypt.compare(password, this.password);
+    return isPasswordCorrect;
+
+}
 
 // const User=mongoose.model("User",userSchema);
 

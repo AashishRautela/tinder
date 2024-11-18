@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser")
 const jwt = require("jsonwebtoken")
 require("dotenv").config({ path: "config.env" });
 const {userAuth}=require("./middlewares/auth")
+const {getFullName}=require("./utils/common")
 
 const app = express();
 app.use(express.json());
@@ -52,9 +53,12 @@ app.post("/login", async (req, res) => {
         }
         const user = await User.findOne({ "emailId": emailId });
         if (user) {
-            const isPasswordCorrect = await bcrypt.compare(password, user.password);
+            const isPasswordCorrect = await user.validatePassword(password);
+            // const isPasswordCorrect=await bcrypt.compare(password, user.password)
             if (isPasswordCorrect) {
                 const token = await jwt.sign({ _id: user?._id }, key)
+                //this is schema methode defined in user schema itself 
+                // const token=await user.getJWT()
                 res.cookie("token", token)
                 res.status(200).send({
                     success: true,
@@ -82,29 +86,12 @@ app.post("/login", async (req, res) => {
 })
 
 //get profile
-app.get("/profile", async (req, res) => {
-    const cookies = req.cookies;
-    const { token } = cookies;
-
-    if (!token) {
-        return res.status(401).send({
-            success: false,
-            message: "Please log in.",
-        });
-    }
-
+app.get("/profile",userAuth, async (req, res) => {
+    
     try {
-        const decodedToken = await jwt.verify(token, key);
-        const user = await User.findOne({ _id: decodedToken._id });
-        if (!user) {
-            return res.status(404).send({
-                success: false,
-                message: "User not found.",
-            });
-        }
-
+        const user = req.user;
         const userObject = user.toObject();
-        delete userObject.password;
+        delete userObject.password; // remove the password from user object
 
         res.status(200).send({
             success: true,
@@ -139,7 +126,8 @@ app.get("/logout",userAuth,async (req,res)=>{
 //sent connection request
 app.post("/sentRequest",userAuth,(req,res)=>{
     try{
-        res.send("yoo")
+        const user=req.user
+        res.send(getFullName(user) + " sent the request")
     }
     catch(error){
         req.status(error.statusCode || 400).send({

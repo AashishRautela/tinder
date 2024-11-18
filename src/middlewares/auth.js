@@ -20,6 +20,7 @@ const userAuth = async (req, res, next) => {
             error.statusCode = 400
             throw error
         }
+        req.user=user;
         next()
     }
     catch (error) {
