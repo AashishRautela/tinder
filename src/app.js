@@ -4,10 +4,16 @@ const User = require("./models/user");
 const validator = require("validator")
 const { validateUser } = require("./utils/validation")
 const bcrypt = require("bcrypt")
+const cookieParser = require("cookie-parser")
+const jwt = require("jsonwebtoken")
+const env = require("dotenv").config({ path: "config.env" });
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
+const port = process.env.PORT || 3001;
+const key = process.env.JWT_KEY || "Ashish"
 // API to sign up a new user
 app.post("/user", async (req, res) => {
     const { firstName, emailId, password, lastName, age, gender } = req.body;
@@ -33,6 +39,11 @@ app.post("/user", async (req, res) => {
 app.post("/login", async (req, res) => {
     try {
         const { emailId, password } = req.body
+        if (!emailId || !password) {
+            const error = new Error("Please Enter email and password")
+            error.statusCode = 400
+            throw error
+        }
         if (!validator.isEmail(emailId)) {
             const error = new Error("Email is not valid");
             error.statusCode = 400
@@ -42,6 +53,8 @@ app.post("/login", async (req, res) => {
         if (user) {
             const isPasswordCorrect = await bcrypt.compare(password, user.password);
             if (isPasswordCorrect) {
+                const token = await jwt.sign({ _id: user?._id }, key)
+                res.cookie("token", token)
                 res.status(200).send({
                     success: true,
                     message: "User loged in successfully"
@@ -60,18 +73,18 @@ app.post("/login", async (req, res) => {
         }
     }
     catch (error) {
-        res.status(error.statusCode).send({
+        res.status(error.statusCode || 500).send({
             success: false,
             message: error.message
         })
     }
 })
 
-// API to fetch a user by firstName
+// API to fetch a user
 app.get("/user", async (req, res) => {
-    const { firstName } = req.body;
+    const { id } = req.body;
     try {
-        const response = await User.find({ firstName });
+        const response = await User.find({ _id: id });
         res.status(200).send({
             success: true,
             data: response || []
@@ -85,13 +98,57 @@ app.get("/user", async (req, res) => {
     }
 });
 
+//get profile
+app.get("/profile", async (req, res) => {
+    const cookies = req.cookies;
+    const { token } = cookies;
+
+    if (!token) {
+        return res.status(401).send({
+            success: false,
+            message: "Please log in.",
+        });
+    }
+
+    try {
+        const decodedToken = await jwt.verify(token, key);
+        const user = await User.findOne({ _id: decodedToken._id });
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        const userObject = user.toObject();
+        delete userObject.password;
+
+        res.status(200).send({
+            success: true,
+            data: userObject,
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).send({
+            success: false,
+            message: error.message || "Internal Server Error",
+        });
+    }
+});
+
+
+
 // API to fetch all users
 app.get("/feed", async (req, res) => {
     try {
-        const users = await User.find({});
+        const users = await User.find({})
+        const data=users.map((user)=>{
+                let temp=user.toObject();
+                delete temp.password;
+                return temp
+        })
         res.status(200).send({
             success: true,
-            data: users || []
+            data: data || []
         });
     } catch (error) {
         console.error(error);
@@ -186,8 +243,8 @@ app.patch("/user/:id", async (req, res) => {
 connectDb()
     .then(() => {
         console.log("Connected to database successfully");
-        app.listen(3000, () => {
-            console.log("Server is running on port 3000");
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
         });
     })
     .catch((err) => {
