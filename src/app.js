@@ -6,21 +6,22 @@ const { validateUser } = require("./utils/validation")
 const bcrypt = require("bcrypt")
 const cookieParser = require("cookie-parser")
 const jwt = require("jsonwebtoken")
-const env = require("dotenv").config({ path: "config.env" });
+require("dotenv").config({ path: "config.env" });
+const {userAuth}=require("./middlewares/auth")
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
 const port = process.env.PORT || 3001;
-const key = process.env.JWT_KEY || "Ashish"
+const key = process.env.JWT_KEY || "asdfghjkl"
+
 // API to sign up a new user
 app.post("/user", async (req, res) => {
     const { firstName, emailId, password, lastName, age, gender } = req.body;
     try {
         validateUser(req);
         const encryptedPassowrd = await bcrypt.hash(password, 10)
-        console.log('encryptedPassowrd', encryptedPassowrd)
         const user = new User({ ...req.body, "password": encryptedPassowrd });
         await user.save();
         res.status(201).send({
@@ -80,24 +81,6 @@ app.post("/login", async (req, res) => {
     }
 })
 
-// API to fetch a user
-app.get("/user", async (req, res) => {
-    const { id } = req.body;
-    try {
-        const response = await User.find({ _id: id });
-        res.status(200).send({
-            success: true,
-            data: response || []
-        });
-    } catch (error) {
-        res.status(400).send({
-            success: false,
-            message: "Error fetching data",
-            error: error.message
-        });
-    }
-});
-
 //get profile
 app.get("/profile", async (req, res) => {
     const cookies = req.cookies;
@@ -135,10 +118,59 @@ app.get("/profile", async (req, res) => {
     }
 });
 
+//logout
+app.get("/logout",userAuth,async (req,res)=>{
+    try{
+        const {token}=req.cookies
+        res.clearCookie("token");
+        res.status(200).send({
+            success:true,
+            message:"User logged out"
+        })
+    }
+    catch(error){
+        res.status(error.statusCode).send({
+            sucess:false,
+            message:error.message
+        })
+    }
+})
+
+//sent connection request
+app.post("/sentRequest",userAuth,(req,res)=>{
+    try{
+        res.send("yoo")
+    }
+    catch(error){
+        req.status(error.statusCode || 400).send({
+            sucess:false,
+            message:error.message
+        })
+    }
+})
+
+// API to fetch a user
+app.get("/user", userAuth, async (req, res) => {
+    const { id } = req.body;
+    try {
+        const response = await User.find({ _id: id });
+        res.status(200).send({
+            success: true,
+            data: response || []
+        });
+    } catch (error) {
+        res.status(400).send({
+            success: false,
+            message: "Error fetching data",
+            error: error.message
+        });
+    }
+});
+
 
 
 // API to fetch all users
-app.get("/feed", async (req, res) => {
+app.get("/feed", userAuth, async (req, res) => {
     try {
         const users = await User.find({})
         const data=users.map((user)=>{
@@ -161,7 +193,7 @@ app.get("/feed", async (req, res) => {
 });
 
 // API to delete a user by ID
-app.delete("/user", async (req, res) => {
+app.delete("/user", userAuth, async (req, res) => {
     const { id } = req.body;
     try {
         const data = await User.findByIdAndDelete(id);
@@ -187,7 +219,7 @@ app.delete("/user", async (req, res) => {
 });
 
 // API to update a user by ID
-app.patch("/user/:id", async (req, res) => {
+app.patch("/user/:id", userAuth, async (req, res) => {
     const id = req.params?.id
     const { ...updateFields } = req.body;
 
