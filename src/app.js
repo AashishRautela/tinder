@@ -23,8 +23,8 @@ const port = process.env.PORT || 3001;
 const key = process.env.JWT_KEY || "asdfghjkl"
 
 //routes
-app.use("/request,",requestRouter)
 app.use("/",authRouter);
+app.use("/request,",requestRouter)
 app.use("/profile",profileRouter)
 
 
