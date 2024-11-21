@@ -63,6 +63,12 @@ const updatePassword=async (req,res)=>{
     try{
         const {password,newPassword,confirmPassword}=req.body;
         const {_id}=req.user
+        const isPasswordCorrect=await req.user.validatePassword(password)
+        if(!isPasswordCorrect){
+            const error=new Error("Password is not correct");
+            error.statusCode=400;
+            throw error;
+        }
         if(newPassword===confirmPassword){
             const encryptedPassword = await bcrypt.hash(newPassword, 10);
             const user=await User.findByIdAndUpdate(_id,{"password":encryptedPassword});
@@ -70,7 +76,6 @@ const updatePassword=async (req,res)=>{
                 success:true,
                 message:"Password updated successfully"
             })
-    
         }
         else{
             const error=new Error(`Password do not match`);

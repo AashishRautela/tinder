@@ -24,7 +24,7 @@ const key = process.env.JWT_KEY || "asdfghjkl"
 
 //routes
 app.use("/",authRouter);
-app.use("/request,",requestRouter)
+app.use("/request",requestRouter)
 app.use("/profile",profileRouter)
 
 
