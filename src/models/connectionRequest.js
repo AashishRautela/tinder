@@ -20,7 +20,9 @@ connectionRequestSchema.index({fromUserId:1,toUserId:1})
 
 connectionRequestSchema.pre("save",function(next){
     if(this.fromUserId.equals(this.toUserId)){
-        throw new Error("Can not send request to yourself");
+        const error =new Error("Can not send request to yourself");
+        error.statusCode=400;
+        throw error;
     }
     next();
 })
