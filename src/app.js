@@ -1,17 +1,11 @@
 const express = require("express");
 const connectDb = require("./config/database");
-const User = require("./models/user");
-const validator = require("validator")
-const { validateUser } = require("./utils/validation")
-const bcrypt = require("bcrypt")
 const cookieParser = require("cookie-parser")
-const jwt = require("jsonwebtoken")
 require("dotenv").config({ path: "config.env" });
-const {userAuth}=require("./middlewares/auth")
-const {getFullName}=require("./utils/common")
 const authRouter=require("./routes/auth");
 const profileRouter=require("./routes/profile");
 const requestRouter=require("./routes/request");
+const userRouter=require("./routes/user");
 
 const app = express();
 
@@ -20,12 +14,12 @@ app.use(express.json());
 app.use(cookieParser());
 
 const port = process.env.PORT || 3001;
-const key = process.env.JWT_KEY || "asdfghjkl"
 
 //routes
 app.use("/",authRouter);
-app.use("/request",requestRouter)
-app.use("/profile",profileRouter)
+app.use("/request",requestRouter);
+app.use("/profile",profileRouter);
+app.use("/user",userRouter);
 
 
 // Connect to the database and start the server
